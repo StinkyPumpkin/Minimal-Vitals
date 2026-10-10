@@ -1,0 +1,39 @@
+#pragma once
+#include <mutex>
+
+namespace Settings {
+
+    struct Config {
+        bool  enabled      = true;
+        float x            = 24.0f;    // top-left of the frame, screen px
+        float y            = 1380.0f;
+        // Fixed size: 1.0 = frame 30 x 440 px. The bars never grow with the player's
+        // max health/magicka/stamina (unlike TrueHUD's "scale bars"); only the numbers do.
+        float scale        = 1.0f;
+        float lineWidth    = 1.5f;     // frame line thickness at scale 1, px
+        float alpha        = 1.0f;     // whole-widget opacity
+        bool  showNumbers  = true;     // current values beside the frame
+        float textSize     = 16.0f;    // number size at scale 1, px
+        bool  grain        = true;     // fine grain over the fills (Interface/MinimalVitals/grain.dds)
+        bool  castIndicator  = true;   // orange line around the lower box while charging a spell
+        bool  shoutIndicator = true;   // white line down the upper right edge while the shout recovers
+        float shoutWidth   = 3.0f;     // shout line thickness at scale 1, px
+        // DirectInput scan code for the manual hide-toggle key. 0 = unbound.
+        int   hideHotkeyDX = 0;
+        // Mirror the vanilla compass _alpha (iHUD, Sandbox When Idle, ...).
+        bool  followCompassHide = true;
+
+        // Runtime only (never saved): draw even when the HUD would hide it, and loop a fake
+        // cast + shout cooldown so position and size can be set without casting.
+        bool  preview      = false;
+    };
+
+    std::unique_lock<std::mutex> Lock();
+    Config& Get();
+
+    void Load();
+    void Save();
+
+    void MarkDirty();
+    bool TakeDirty();
+}
