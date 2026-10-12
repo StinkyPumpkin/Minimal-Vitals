@@ -5,12 +5,13 @@ It replaces TrueHUD's player bars. TrueHUD's boss bars, enemy bars and enchantme
 
 ## What it shows
 
-- **Frame**: one thin-line parallelogram with a diagonal divider. All diagonals are 45 degrees.
+- **Frame**: one thin-line frame with a diagonal divider. All diagonals are 30 degrees off vertical. The top edge rises to a point on the right; the divider and the bottom edge fall to the right.
+- **Gold band**: inside each box, a band of Edge UI gold fading to black runs between the frame and the bar track. The track itself stays clear, so an emptying bar leaves empty space.
 - **Health**: fills up from the divider.
 - **Magicka and stamina**: sit side by side under the divider and fill down from it.
 - **Numbers**: current values beside the frame. The bars are a fixed size at every level; only the numbers grow.
-- **Casting**: an orange line runs clockwise round the lower box while a spell charges, starting at its top-left corner. Once the spell is fully charged and still held (or a concentration spell is being channelled), the whole outline pulses. It disappears when the spell is released or cancelled. The charge timer and hand priority follow zax's Casting Bar.
-- **Shout cooldown**: a white line runs down the upper right edge from the top corner to the divider while the shout recovers, then disappears.
+- **Casting**: a pink-to-purple glow grows clockwise round the lower box while a spell charges, starting at its top-left corner. It shines outward from behind the frame line; along the divider it is drawn over the health section. Once the spell is fully charged and still held (or a concentration spell is being channelled), the whole box glows and pulses. It disappears when the spell is released or cancelled. The charge timer and hand priority follow zax's Casting Bar.
+- **Shout cooldown**: a white glow grows from the top point down the top edge, then down the whole left side, while the shout recovers, then disappears. It is wider than the cast glow so both show where they share the lower left edge. Its ends are cut parallel to the frame.
 
 ## Requirements
 

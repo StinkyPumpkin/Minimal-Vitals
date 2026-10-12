@@ -23,13 +23,13 @@ namespace {
             "  \"enabled\": %s,\n  \"x\": %.2f,\n  \"y\": %.2f,\n  \"scale\": %.3f,\n"
             "  \"lineWidth\": %.2f,\n  \"alpha\": %.3f,\n"
             "  \"showNumbers\": %s,\n  \"textSize\": %.2f,\n  \"grain\": %s,\n"
-            "  \"castIndicator\": %s,\n  \"shoutIndicator\": %s,\n  \"shoutWidth\": %.2f,\n"
+            "  \"castIndicator\": %s,\n  \"shoutIndicator\": %s,\n  \"shoutGlowWidth\": %.2f,\n"
             "  \"hideHotkeyDX\": %d,\n  \"followCompassHide\": %s\n"
             "}\n",
             B(c.enabled), c.x, c.y, c.scale,
             c.lineWidth, c.alpha,
             B(c.showNumbers), c.textSize, B(c.grain),
-            B(c.castIndicator), B(c.shoutIndicator), c.shoutWidth,
+            B(c.castIndicator), B(c.shoutIndicator), c.shoutGlow,
             c.hideHotkeyDX, B(c.followCompassHide));
         return buf;
     }
@@ -78,12 +78,14 @@ namespace Settings {
         ReadB(txt, "grain", c.grain);
         ReadB(txt, "castIndicator", c.castIndicator);
         ReadB(txt, "shoutIndicator", c.shoutIndicator);
-        ReadF(txt, "shoutWidth", c.shoutWidth);
+        // 0.1.x saved "shoutWidth" (a 3 px line); the glow has its own key so that value is ignored.
+        ReadF(txt, "shoutGlowWidth", c.shoutGlow);
         ReadI(txt, "hideHotkeyDX", c.hideHotkeyDX);
         ReadB(txt, "followCompassHide", c.followCompassHide);
         c.scale     = std::clamp(c.scale, 0.25f, 4.0f);
         c.lineWidth = std::clamp(c.lineWidth, 0.5f, 6.0f);
         c.textSize  = std::clamp(c.textSize, 6.0f, 64.0f);
+        c.shoutGlow = std::clamp(c.shoutGlow, 2.0f, 20.0f);
         SKSE::log::info("Settings::Load - applied config from disk");
     }
 

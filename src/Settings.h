@@ -7,7 +7,7 @@ namespace Settings {
         bool  enabled      = true;
         float x            = 24.0f;    // top-left of the frame, screen px
         float y            = 1380.0f;
-        // Fixed size: 1.0 = frame 30 x 440 px. The bars never grow with the player's
+        // Fixed size: 1.0 = frame 30 x 462 px. The bars never grow with the player's
         // max health/magicka/stamina (unlike TrueHUD's "scale bars"); only the numbers do.
         float scale        = 1.0f;
         float lineWidth    = 1.5f;     // frame line thickness at scale 1, px
@@ -15,9 +15,9 @@ namespace Settings {
         bool  showNumbers  = true;     // current values beside the frame
         float textSize     = 16.0f;    // number size at scale 1, px
         bool  grain        = true;     // fine grain over the fills (Interface/MinimalVitals/grain.dds)
-        bool  castIndicator  = true;   // orange line around the lower box while charging a spell
-        bool  shoutIndicator = true;   // white line down the upper right edge while the shout recovers
-        float shoutWidth   = 3.0f;     // shout line thickness at scale 1, px
+        bool  castIndicator  = true;   // pink glow round the lower box while charging a spell
+        bool  shoutIndicator = true;   // white glow down the top edge and left side while the shout recovers
+        float shoutGlow    = 10.0f;    // shout glow width outward from the frame at scale 1, px
         // DirectInput scan code for the manual hide-toggle key. 0 = unbound.
         int   hideHotkeyDX = 0;
         // Mirror the vanilla compass _alpha (iHUD, Sandbox When Idle, ...).
