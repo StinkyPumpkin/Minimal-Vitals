@@ -10,3 +10,4 @@ vcpkg_installed/
 *.obj
 *.lib
 *.log
+dist/
