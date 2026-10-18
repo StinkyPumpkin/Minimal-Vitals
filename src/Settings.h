@@ -10,6 +10,9 @@ namespace Settings {
         // Fixed size: 1.0 = frame 30 x 462 px. The bars never grow with the player's
         // max health/magicka/stamina (unlike TrueHUD's "scale bars"); only the numbers do.
         float scale        = 1.0f;
+        // Quarter turns clockwise: 0 = upright, 1 = 90 (lying, health on the right),
+        // 2 = 180, 3 = 270 (lying, health on the left). The numbers stay upright.
+        int   rotation     = 0;
         float lineWidth    = 1.5f;     // frame line thickness at scale 1, px
         float alpha        = 1.0f;     // whole-widget opacity
         bool  showNumbers  = true;     // current values beside the frame

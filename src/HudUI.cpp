@@ -7,6 +7,7 @@
 #include "SKSEMenuFramework.h"
 
 #include <algorithm>
+#include <cfloat>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -34,6 +35,7 @@ namespace {
     constexpr float K = 1.7320508f;         // tan 60: a diagonal drops K units per unit across
     constexpr float H = W * K;              // drop of a diagonal across the frame
     constexpr float TOP = 0.0f, DIV = 275.0f, BOT = 410.0f;
+    constexpr float FH = BOT + H;           // frame height (top point to bottom-right corner)
     constexpr float PAD = 6.0f;             // bar inset from the frame, square to each edge (= the gold band)
     constexpr float GAP = PAD * 2.0f;       // the same inset measured vertically from a diagonal (1 / cos 60)
     constexpr float SPLIT = 2.0f;           // half the gap between magicka and stamina
@@ -100,11 +102,23 @@ namespace {
         return std::chrono::duration<float>(clock::now() - s0).count();
     }
 
-    // Reference units -> screen px.
+    // Reference units -> screen px, turned `rot` quarter turns clockwise inside the frame's
+    // W x FH box (the turned box still starts at o). Everything is built upright in reference
+    // units, so glow directions and end cuts turn with the frame.
     struct Xf {
         ImVec2 o;
         float  s;
-        ImVec2 operator()(float x, float y) const { return { o.x + x * s, o.y + y * s }; }
+        int    rot = 0;
+        ImVec2 operator()(float x, float y) const {
+            float u = x, w = y;
+            switch (rot) {
+            case 1: u = FH - y; w = x;      break;
+            case 2: u = W - x;  w = FH - y; break;
+            case 3: u = y;      w = W - x;  break;
+            default: break;
+            }
+            return { o.x + u * s, o.y + w * s };
+        }
         ImVec2 operator()(ImVec2 p) const { return (*this)(p.x, p.y); }
     };
 
@@ -353,9 +367,21 @@ namespace {
         return best ? best : ImGuiMCP::GetFont();
     }
 
-    void Number(ImGuiMCP::ImDrawList* dl, ImGuiMCP::ImFont* font, float px, ImVec2 baseline, float value, Rgb col, float a) {
+    void Format(char (&txt)[16], float value) { std::snprintf(txt, sizeof(txt), "%d", static_cast<int>(std::lround(value))); }
+
+    float TextWidth(ImGuiMCP::ImFont* font, float px, float value) {
         char txt[16];
-        std::snprintf(txt, sizeof(txt), "%d", static_cast<int>(std::lround(value)));
+        Format(txt, value);
+        if (!font) return px * 0.55f * static_cast<float>(std::strlen(txt));
+        return ImGuiMCP::ImFontManger::CalcTextSizeA(font, px, FLT_MAX, 0.0f, txt, nullptr, nullptr).x;
+    }
+
+    // baseline.x is the number's left end, or its right end when rightAlign.
+    void Number(ImGuiMCP::ImDrawList* dl, ImGuiMCP::ImFont* font, float px, ImVec2 baseline, float value, Rgb col, float a,
+                bool rightAlign = false) {
+        char txt[16];
+        Format(txt, value);
+        if (rightAlign) baseline.x -= TextWidth(font, px, value);
         const ImVec2 pos{ std::round(baseline.x), std::round(baseline.y - px * 0.78f) };
         DL::AddText(dl, font, px, { pos.x + 1.0f, pos.y + 1.0f }, Col({ 0, 0, 0 }, 0.55f * a), txt);
         DL::AddText(dl, font, px, pos, Col(col, a), txt);
@@ -392,19 +418,34 @@ namespace {
         const float M = MARGIN * s;
         const float textRef = cfg.textSize;
         const float labelRef = cfg.showNumbers ? 10.0f + textRef * 3.2f : 0.0f;
+        const float labelRow = cfg.showNumbers ? 8.0f + textRef * 1.2f : 0.0f;
+        const int rot = ((cfg.rotation % 4) + 4) % 4;
+        const bool lying = rot == 1 || rot == 3;
 
-        // The window carries a margin for the glows; the frame stays where it was before
-        // the margin grew (x/y + window padding + 10 px).
-        ImGuiMCP::SetNextWindowPos({ cfg.x - (M - 10.0f * s), cfg.y - (M - 10.0f * s) }, ImGuiMCP::ImGuiCond_Always, { 0, 0 });
+        // Room for the numbers on the side they sit: right (upright), below (90), left (180),
+        // above (270).
+        float padL = 0.0f, padT = 0.0f, padR = 0.0f, padB = 0.0f;
+        switch (rot) {
+        case 0: padR = labelRef; break;
+        case 1: padB = labelRow; break;
+        case 2: padL = labelRef; break;
+        default: padT = labelRow; break;
+        }
+        const float boxW = lying ? FH : W, boxH = lying ? W : FH;
+
+        // The window carries a margin for the glows; the frame's box stays where it was before
+        // the margin grew (x/y + window padding + 10 px), whatever the rotation.
+        ImGuiMCP::SetNextWindowPos({ cfg.x - (M - 10.0f * s) - padL * s, cfg.y - (M - 10.0f * s) - padT * s },
+                                   ImGuiMCP::ImGuiCond_Always, { 0, 0 });
         bool open = true;
         if (!ImGuiMCP::Begin("##minimalvitals", &open, OverlayFlags)) { ImGuiMCP::End(); return; }
         const ImVec2 origin = ImGuiMCP::GetCursorScreenPos();
-        ImGuiMCP::Dummy({ (W + labelRef) * s + 2.0f * M, (BOT + H) * s + 2.0f * M });
+        ImGuiMCP::Dummy({ (boxW + padL + padR) * s + 2.0f * M, (boxH + padT + padB) * s + 2.0f * M });
         auto* dl = ImGuiMCP::GetWindowDrawList();
         if (!dl) { ImGuiMCP::End(); return; }
         g_white = ImGuiMCP::GetFontTexUvWhitePixel();
 
-        const Xf X{ { origin.x + M, origin.y + M }, s };
+        const Xf X{ { origin.x + M + padL * s, origin.y + M + padT * s }, s, rot };
         auto ratio = [](float cur, float max) { return max > 0.0f ? std::clamp(cur / max, 0.0f, 1.0f) : 0.0f; };
 
         const ImVec2 upper[4] = { { XL, TopY(XL) }, { XR, TOP }, { XR, DivY(XR) }, { XL, DIV } };
@@ -469,10 +510,41 @@ namespace {
             auto* font = FindFont();
             const float px = textRef * s;
             const float tx = XR + 12.0f;
-            const float yH = DivY(XR) - 14.0f, yM = yH + textRef * 2.857f, yS = yM + textRef * 1.4286f;
-            Number(dl, font, px, X(tx, yH), v.hp, kHealth.label, A);
-            Number(dl, font, px, X(tx, yM), v.mp, kMagicka.label, A);
-            Number(dl, font, px, X(tx, yS), v.sp, kStamina.label, A);
+            // Upright: baselines beside the right edge, relative to where the divider meets it.
+            const float jy = DivY(XR);
+            const float dH = -14.0f, dM = dH + textRef * 2.857f, dS = dM + textRef * 1.4286f;
+            const float asc = textRef * 0.78f, desc = textRef * 0.22f;
+            if (rot == 0) {
+                Number(dl, font, px, X(tx, jy + dH), v.hp, kHealth.label, A);
+                Number(dl, font, px, X(tx, jy + dM), v.mp, kMagicka.label, A);
+                Number(dl, font, px, X(tx, jy + dS), v.sp, kStamina.label, A);
+            } else if (rot == 2) {
+                // Left of the frame, right-aligned; each number mirrored about the divider so it
+                // stays beside its own box.
+                const ImVec2 j = X(tx, jy);
+                auto at = [&](float d) { return ImVec2{ j.x, j.y + (asc - d) * s }; };
+                Number(dl, font, px, at(dH), v.hp, kHealth.label, A, true);
+                Number(dl, font, px, at(dM), v.mp, kMagicka.label, A, true);
+                Number(dl, font, px, at(dS), v.sp, kStamina.label, A, true);
+            } else {
+                // Lying: one row along the long edge the upright right side turned into (below
+                // at 90, above at 270). Health on its box's side of the divider, magicka then
+                // stamina on the other side.
+                const ImVec2 j = X(XR, jy);
+                const float gap = 8.0f * s, sep = 0.6f * px;
+                const float base = rot == 1 ? j.y + (6.0f + asc) * s : j.y - (6.0f + desc) * s;
+                if (rot == 1) {
+                    const float wS = TextWidth(font, px, v.sp);
+                    Number(dl, font, px, { j.x + gap, base }, v.hp, kHealth.label, A);
+                    Number(dl, font, px, { j.x - gap, base }, v.sp, kStamina.label, A, true);
+                    Number(dl, font, px, { j.x - gap - wS - sep, base }, v.mp, kMagicka.label, A, true);
+                } else {
+                    const float wM = TextWidth(font, px, v.mp);
+                    Number(dl, font, px, { j.x - gap, base }, v.hp, kHealth.label, A, true);
+                    Number(dl, font, px, { j.x + gap, base }, v.mp, kMagicka.label, A);
+                    Number(dl, font, px, { j.x + gap + wM + sep, base }, v.sp, kStamina.label, A);
+                }
+            }
         }
 
         ImGuiMCP::End();

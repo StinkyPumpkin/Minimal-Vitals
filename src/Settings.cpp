@@ -20,13 +20,13 @@ namespace {
         char buf[900];
         std::snprintf(buf, sizeof(buf),
             "{\n"
-            "  \"enabled\": %s,\n  \"x\": %.2f,\n  \"y\": %.2f,\n  \"scale\": %.3f,\n"
+            "  \"enabled\": %s,\n  \"x\": %.2f,\n  \"y\": %.2f,\n  \"scale\": %.3f,\n  \"rotation\": %d,\n"
             "  \"lineWidth\": %.2f,\n  \"alpha\": %.3f,\n"
             "  \"showNumbers\": %s,\n  \"textSize\": %.2f,\n  \"grain\": %s,\n"
             "  \"castIndicator\": %s,\n  \"shoutIndicator\": %s,\n  \"shoutGlowWidth\": %.2f,\n"
             "  \"hideHotkeyDX\": %d,\n  \"followCompassHide\": %s\n"
             "}\n",
-            B(c.enabled), c.x, c.y, c.scale,
+            B(c.enabled), c.x, c.y, c.scale, c.rotation,
             c.lineWidth, c.alpha,
             B(c.showNumbers), c.textSize, B(c.grain),
             B(c.castIndicator), B(c.shoutIndicator), c.shoutGlow,
@@ -71,7 +71,10 @@ namespace Settings {
         auto& c = g_config;
         ReadB(txt, "enabled", c.enabled);
         ReadF(txt, "x", c.x);                   ReadF(txt, "y", c.y);
-        ReadF(txt, "scale", c.scale);           ReadF(txt, "lineWidth", c.lineWidth);
+        ReadF(txt, "scale", c.scale);
+        ReadI(txt, "rotation", c.rotation);
+        c.rotation = ((c.rotation % 4) + 4) % 4;
+        ReadF(txt, "lineWidth", c.lineWidth);
         ReadF(txt, "alpha", c.alpha);
         ReadB(txt, "showNumbers", c.showNumbers);
         ReadF(txt, "textSize", c.textSize);

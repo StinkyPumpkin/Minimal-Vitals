@@ -21,7 +21,7 @@ It replaces TrueHUD's player bars. TrueHUD's boss bars, enemy bars and enchantme
 
 In SKSE Menu Framework, open **Minimal Vitals**.
 
-- **Layout**: position, size, line width, opacity, number size, grain, and the casting and shout indicators. **Preview** shows the widget all the time and loops a fake cast and shout cooldown, so you can place it without casting. Preview is not saved.
+- **Layout**: position, size, rotation (upright, 90, 180 or 270 degrees; lying flat the numbers sit in one row along the long edge, and they always stay upright), line width, opacity, number size, grain, and the casting and shout indicators. **Preview** shows the widget all the time and loops a fake cast and shout cooldown, so you can place it without casting. Preview is not saved.
 - **Visibility**: a hide hotkey and the follow-compass-hide option. The widget also hides with iHUD Smart Hide, TFCam free camera, Photo Mode Hide UI, menus and loading screens.
 
 Settings are saved to `SKSE/Plugins/MinimalVitals/config.json` (created on the first change, never shipped).

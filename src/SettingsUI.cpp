@@ -27,6 +27,7 @@ namespace {
         if (ImGuiMCP::SliderFloat("X", &cfg.x, -50.0f, 3840.0f, "%.0f")) dirty = true;
         if (ImGuiMCP::SliderFloat("Y", &cfg.y, -50.0f, 2160.0f, "%.0f")) dirty = true;
         if (ImGuiMCP::SliderFloat("Size", &cfg.scale, 0.25f, 4.0f, "%.2f")) dirty = true;
+        if (ImGuiMCP::Combo("Rotation", &cfg.rotation, "Upright\0" "90 (lying, health right)\0" "180\0" "270 (lying, health left)\0")) dirty = true;
         if (ImGuiMCP::SliderFloat("Frame line width", &cfg.lineWidth, 0.5f, 6.0f, "%.1f")) dirty = true;
         if (ImGuiMCP::SliderFloat("Opacity", &cfg.alpha, 0.05f, 1.0f, "%.2f")) dirty = true;
         if (ImGuiMCP::Checkbox("Show numbers", &cfg.showNumbers)) dirty = true;
