@@ -51,7 +51,7 @@ namespace {
         if (ImGuiMCP::SliderInt("Scan code##hide", &cfg.hideHotkeyDX, 0, 220)) dirty = true;
         ImGuiMCP::Text("");
         if (ImGuiMCP::Checkbox("Follow compass hide (iHUD / Sandbox When Idle / etc.)", &cfg.followCompassHide)) dirty = true;
-        ImGuiMCP::Text("Also hides with iHUD Smart Hide, TFCam free camera and Photo Mode Hide UI.");
+        ImGuiMCP::Text("Also hides in menus, loading screens and with Photo Mode Hide UI / the tm console command.");
         if (dirty) Settings::MarkDirty();
         { auto lk = Settings::Lock(); Settings::Get() = cfg; }
     }
