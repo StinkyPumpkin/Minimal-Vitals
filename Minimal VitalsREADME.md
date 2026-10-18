@@ -26,14 +26,19 @@ In SKSE Menu Framework, open **Minimal Vitals**.
 
 Settings are saved to `SKSE/Plugins/MinimalVitals/config.json` (created on the first change, never shipped).
 
-## TrueHUD
+## Vanilla bars and TrueHUD
 
-Set TrueHUD's player widget Health, Magicka, Stamina and Shout indicator display to **Never**.
+TrueHUD is not required. Minimal Vitals does not hide the vanilla bars itself; use TrueHUD, iHUD or any HUD mod that hides them.
+
+With TrueHUD: set its player widget Health, Magicka, Stamina and Shout indicator display to **Never**.
 Keep **Hide vanilla bars** on. If the vanilla bars still show, turn on **Force hide vanilla bars**.
 
 ## Files
 
 - `SKSE/Plugins/MinimalVitals.dll`
 - `Interface/MinimalVitals/grain.dds`: 128 px tiling grain (made by `tools/make_grain.py`).
-- `SKSE/Plugins/Fonts/MinimalVitals.ttf`: the number font. SKSE Menu Framework loads every font in that folder.
-  The current file is Century Gothic copied from Windows for personal use. Replace it with an OFL font such as Jost before any public release.
+- `SKSE/Plugins/Fonts/MinimalVitals.ttf`: the number font, Outfit Regular (SIL Open Font License, `Minimal Vitals Font OFL.txt`; source `art/`). SKSE Menu Framework loads every font in that folder.
+
+## License
+
+Code: GPL-3.0 (`LICENSE`). Font: Outfit, Copyright 2021 The Outfit Project Authors, SIL OFL 1.1.
