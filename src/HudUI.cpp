@@ -57,6 +57,7 @@ namespace {
     constexpr Rgb  kPurple { 143,  75, 255 };
     constexpr Rgb  kLilac  { 255, 196, 240 };
     constexpr Rgb  kWhite  { 248, 248, 248 };
+    constexpr Rgb  kTrack  {  10,  11,  13 };   // optional bar backing
 
     // Edge UI gold (its SkyPrompt icon set: #f6d884 highlight, #7e6024 deep) -> black, by
     // distance in from the frame line. The last stop is a soft edge onto the empty track.
@@ -491,8 +492,21 @@ namespace {
         };
         if (casting) drawCast(Pass::Below);
 
-        // 3. Bars.
+        // 3. Bars, on an optional dark backing (each bar's full track; off by default so an emptying
+        // bar leaves empty space).
         const float L = XL + PAD, R = XR - PAD, mid = (L + R) * 0.5f;
+        if (cfg.trackOpacity > 0.0f) {
+            const ImU32 back = Col(kTrack, std::clamp(cfg.trackOpacity, 0.0f, 1.0f) * A);
+            auto up = [&](float l, float r) {
+                DL::AddQuadFilled(dl, X(l, TopY(l) + GAP), X(r, TopY(r) + GAP), X(r, DivY(r) - GAP), X(l, DivY(l) - GAP), back);
+            };
+            auto down = [&](float l, float r) {
+                DL::AddQuadFilled(dl, X(l, DivY(l) + GAP), X(r, DivY(r) + GAP), X(r, BotY(r) - GAP), X(l, BotY(l) - GAP), back);
+            };
+            up(L, R);
+            down(L, mid - SPLIT);
+            down(mid + SPLIT, R);
+        }
         BarUp(dl, X, L, R, ratio(v.hp, v.hpMax), kHealth, A, cfg.grain);
         BarDown(dl, X, L, mid - SPLIT, ratio(v.mp, v.mpMax), kMagicka, A, cfg.grain);
         BarDown(dl, X, mid + SPLIT, R, ratio(v.sp, v.spMax), kStamina, A, cfg.grain);

@@ -18,6 +18,8 @@ namespace Settings {
         bool  showNumbers  = true;     // current values beside the frame
         float textSize     = 16.0f;    // number size at scale 1, px
         bool  grain        = true;     // fine grain over the fills (Interface/MinimalVitals/grain.dds)
+        // Dark backing behind each bar track. 0 = clear: an emptying bar leaves empty space.
+        float trackOpacity = 0.0f;
         bool  castIndicator  = true;   // pink glow round the lower box while charging a spell
         bool  shoutIndicator = true;   // white glow down the top edge and left side while the shout recovers
         float shoutGlow    = 10.0f;    // shout glow width outward from the frame at scale 1, px

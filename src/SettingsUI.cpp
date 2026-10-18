@@ -33,6 +33,7 @@ namespace {
         if (ImGuiMCP::Checkbox("Show numbers", &cfg.showNumbers)) dirty = true;
         if (ImGuiMCP::SliderFloat("Number size", &cfg.textSize, 6.0f, 64.0f, "%.0f")) dirty = true;
         if (ImGuiMCP::Checkbox("Grain texture on the bars", &cfg.grain)) dirty = true;
+        if (ImGuiMCP::SliderFloat("Bar backing opacity (0 = clear)", &cfg.trackOpacity, 0.0f, 1.0f, "%.2f")) dirty = true;
         ImGuiMCP::Text("");
         if (ImGuiMCP::Checkbox("Casting indicator (pink glow round the lower box)", &cfg.castIndicator)) dirty = true;
         if (ImGuiMCP::Checkbox("Shout cooldown (white glow down the top edge and left side)", &cfg.shoutIndicator)) dirty = true;

@@ -102,13 +102,16 @@ namespace {
     // disable the widget and say exactly what to install.
     bool CheckAddressLibrary() {
         const auto ver = REL::Module::get().version();
+        // Same file CommonLib's IDDB::load() opens: VR reads a .csv, AE a versionlib .bin, SE a version .bin.
+        // 0.4.0 (CommonLibSSE-NG 9.x): NG classifies minor >= 6 as AE, so 1.7.x is AE too and the file is
+        // versionlib-1-7-104-0.bin - the Address Library v5 database (format 5), which NG 9.x parses.
         std::string file;
-        if (ver.major() == 1 && ver.minor() < 6) {
-            file = std::format("Data/SKSE/Plugins/version-{}-{}-{}-{}.bin",
-                               ver.major(), ver.minor(), ver.patch(), ver.build());
+        if (REL::Module::IsVR()) {
+            file = std::format("Data/SKSE/Plugins/version-{}.csv", ver.string());
+        } else if (REL::Module::IsAE()) {
+            file = std::format("Data/SKSE/Plugins/versionlib-{}.bin", ver.string());
         } else {
-            file = std::format("Data/SKSE/Plugins/versionlib-{}-{}-{}-{}.bin",
-                               ver.major(), ver.minor(), ver.patch(), ver.build());
+            file = std::format("Data/SKSE/Plugins/version-{}.bin", ver.string());
         }
         std::error_code ec;
         if (std::filesystem::exists(std::filesystem::current_path() / file, ec)) {
@@ -121,7 +124,7 @@ namespace {
             "Minimal Vitals: the Address Library file for your game version "
             "({}.{}.{}.{}) is not installed, so the widget has been disabled.\n\n"
             "Install \"Address Library for SKSE Plugins\" and pick the edition that "
-            "matches your game (1.5.x = SE edition, 1.6.x = AE edition).\n\n"
+            "matches your game (1.5.x = SE, 1.6.x / 1.7.x = AE, VR = the VR Address Library).\n\n"
             "The game will continue to run normally.",
             ver.major(), ver.minor(), ver.patch(), ver.build());
         ::MessageBoxA(nullptr, text.c_str(), "Minimal Vitals", MB_OK | MB_ICONWARNING);
@@ -160,8 +163,9 @@ namespace {
 SKSEPluginLoad(const SKSE::LoadInterface* skse) {
     WriteStartupMarker("SKSEPluginLoad-enter");
     InitializeLogging();
-    SKSE::log::info("MinimalVitals loading...");
-    SKSE::Init(skse);
+    SKSE::log::info("MinimalVitals loading... built on CommonLibSSE-NG {}", MINIMALVITALS_COMMONLIB_VERSION);
+    // NG 9's Init opens its own <plugin>.log by default and would replace this logger.
+    SKSE::Init(skse, { .log = false });
 
     auto* mi = SKSE::GetMessagingInterface();
     if (!mi || !mi->RegisterListener(MessageCallback)) {

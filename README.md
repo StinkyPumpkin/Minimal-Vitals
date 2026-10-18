@@ -15,6 +15,7 @@ Thin-line frame, fixed size at every level, current values beside it.
 - Glow down the frame while your shout recovers
 - Rotate it 90, 180 or 270 degrees; the numbers stay upright
 - Hides in menus, loading screens, with a hotkey, with Photo Mode Hide UI, and whenever the compass is hidden
+- Optional dark backing behind the bars (off = clear)
 - Position, size, rotation, opacity, line width and glows set in SKSE Menu Framework, with a live preview
 
 ## Requirements
@@ -23,15 +24,28 @@ Thin-line frame, fixed size at every level, current values beside it.
 - Address Library for SKSE Plugins
 - SKSE Menu Framework
 
+Works on SE 1.5.97, AE 1.6.x and 1.7.x (use the Address Library that matches your game).
+
 TrueHUD is not required. Minimal Vitals does not hide the vanilla bars itself; use TrueHUD, Immersive HUD or any HUD mod that hides them.
 
 Full user notes: [Minimal VitalsREADME.md](Minimal%20VitalsREADME.md) (the file shipped with the mod).
 
 ## Building
 
-- Visual Studio 2022 or Build Tools (C++ workload), CMake, Ninja
-- vcpkg with `VCPKG_ROOT` set (CommonLibSSE-NG comes from the registry in `vcpkg-configuration.json`)
-- Edit the two paths at the top of `build.bat` to match your Visual Studio install, then run it. The DLL lands in `build/release/`.
+Built against [CommonLibSSE-NG](https://github.com/alandtse/CommonLibSSE-NG) **v9.1.0** (alandtse), pinned as the
+submodule `extern/CommonLibSSE-NG`. That version reads the 1.7.x Address Library (format 5) and marks the DLL as
+Address Library v5 compatible, so one DLL runs on SE 1.5.97, AE 1.6.x, 1.7.x and VR.
+
+```bat
+git clone https://github.com/StinkyPumpkin/Minimal-Vitals.git
+cd Minimal-Vitals
+git submodule update --init --recursive --depth 1
+build.bat
+```
+
+- Visual Studio 2022 (C++ workload, MSVC 14.44), CMake 3.21+, Ninja
+- vcpkg (manifest mode; `build.bat` sets `VCPKG_ROOT=C:\vcpkg`, edit it and the Visual Studio path for your setup)
+- Output: `build/ng/release/MinimalVitals.dll`. The first build compiles CommonLibSSE-NG itself.
 - Optional: set `SKYRIM_MODS_FOLDER` to your MO2 `mods` folder and the build copies the DLL into a mod folder there.
 
 Release layout: `SKSE/Plugins/MinimalVitals.dll`, `SKSE/Plugins/Fonts/MinimalVitals.ttf` (from `art/`),

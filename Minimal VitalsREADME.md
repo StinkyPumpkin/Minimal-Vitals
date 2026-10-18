@@ -15,13 +15,14 @@ It replaces TrueHUD's player bars. TrueHUD's boss bars, enemy bars and enchantme
 
 ## Requirements
 
-- SKSE, Address Library, SKSE Menu Framework.
+- SKSE, Address Library for SKSE Plugins, SKSE Menu Framework.
+- Works on Skyrim SE 1.5.97, AE 1.6.x and the 1.7.x update (1.7.99 / 1.7.104) with the matching Address Library.
 
 ## Settings
 
 In SKSE Menu Framework, open **Minimal Vitals**.
 
-- **Layout**: position, size, rotation (upright, 90, 180 or 270 degrees; lying flat the numbers sit in one row along the long edge, and they always stay upright), line width, opacity, number size, grain, and the casting and shout indicators. **Preview** shows the widget all the time and loops a fake cast and shout cooldown, so you can place it without casting. Preview is not saved.
+- **Layout**: position, size, rotation (upright, 90, 180 or 270 degrees; lying flat the numbers sit in one row along the long edge, and they always stay upright), line width, opacity, number size, grain, bar backing opacity (0 = clear, up to a solid dark backing behind each bar), and the casting and shout indicators. **Preview** shows the widget all the time and loops a fake cast and shout cooldown, so you can place it without casting. Preview is not saved.
 - **Visibility**: a hide hotkey and the follow-compass-hide option (hides whenever the compass is hidden, e.g. by Immersive HUD). The widget also hides in menus, loading screens, the vanity camera and with Photo Mode Hide UI / the `tm` console command.
 - Other mods can hide it over SKSE messaging: send message type 1 (hide) / 2 (show) with the sender name `iHUDClaude` or `TFCam`. Nothing is needed for this; without such a mod the other hides work as normal.
 
