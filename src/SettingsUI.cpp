@@ -38,6 +38,7 @@ namespace {
         if (ImGuiMCP::Checkbox("Casting indicator (pink glow round the lower box)", &cfg.castIndicator)) dirty = true;
         if (ImGuiMCP::Checkbox("Shout cooldown (white glow down the top edge and left side)", &cfg.shoutIndicator)) dirty = true;
         if (ImGuiMCP::SliderFloat("Shout glow width", &cfg.shoutGlow, 2.0f, 20.0f, "%.1f")) dirty = true;
+        if (ImGuiMCP::Checkbox("Horse stamina (thin line down the right side while riding)", &cfg.horseStamina)) dirty = true;
 
         if (dirty) Settings::MarkDirty();
         { auto lk = Settings::Lock(); Settings::Get() = cfg; }

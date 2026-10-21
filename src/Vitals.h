@@ -21,6 +21,10 @@ namespace Vitals {
         // Shout recovery: 0 when the cooldown starts, 1 when it is done (then hidden).
         bool  shoutCooling = false;
         float shoutProgress = 0;
+
+        // The horse's stamina while the player rides (mounted = false otherwise).
+        bool  mounted = false;
+        float horseSp = 0, horseSpMax = 0;
     };
 
     // kDataLoaded: object-loaded sink (re-attaches the animation sink when the player's 3D reloads).

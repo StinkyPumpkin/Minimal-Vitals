@@ -82,7 +82,7 @@ namespace {
         }
     };
 
-    float MaxAV(RE::PlayerCharacter* p, RE::ActorValue av) {
+    float MaxAV(RE::Actor* p, RE::ActorValue av) {
         auto* avo = p->AsActorValueOwner();
         return avo->GetPermanentActorValue(av) +
                p->GetActorValueModifier(RE::ACTOR_VALUE_MODIFIER::kTemporary, av);
@@ -129,6 +129,15 @@ namespace {
         g_shoutLast = rec;
     }
 
+    void ReadMount(RE::PlayerCharacter* p, Vitals::Snapshot& s) {
+        if (!p->IsOnMount()) return;
+        RE::NiPointer<RE::Actor> horse;
+        if (!p->GetMount(horse) || !horse) return;
+        s.horseSp    = horse->AsActorValueOwner()->GetActorValue(RE::ActorValue::kStamina);
+        s.horseSpMax = MaxAV(horse.get(), RE::ActorValue::kStamina);
+        s.mounted    = s.horseSpMax > 0.0f;
+    }
+
     void ReadNow() {
         Vitals::Snapshot s{};
         auto* p = RE::PlayerCharacter::GetSingleton();
@@ -142,6 +151,7 @@ namespace {
             s.spMax = MaxAV(p, RE::ActorValue::kStamina);
             ReadCast(p, s);
             ReadShout(p, s);
+            ReadMount(p, s);
             s.valid = true;
         }
         std::lock_guard lk(g_snapMutex);

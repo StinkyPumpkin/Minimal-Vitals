@@ -23,6 +23,7 @@ namespace Settings {
         bool  castIndicator  = true;   // pink glow round the lower box while charging a spell
         bool  shoutIndicator = true;   // white glow down the top edge and left side while the shout recovers
         float shoutGlow    = 10.0f;    // shout glow width outward from the frame at scale 1, px
+        bool  horseStamina = true;     // thin dark green line down the right side while riding
         // DirectInput scan code for the manual hide-toggle key. 0 = unbound.
         int   hideHotkeyDX = 0;
         // Mirror the vanilla compass _alpha (iHUD, Sandbox When Idle, ...).

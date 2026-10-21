@@ -23,13 +23,13 @@ namespace {
             "  \"enabled\": %s,\n  \"x\": %.2f,\n  \"y\": %.2f,\n  \"scale\": %.3f,\n  \"rotation\": %d,\n"
             "  \"lineWidth\": %.2f,\n  \"alpha\": %.3f,\n"
             "  \"showNumbers\": %s,\n  \"textSize\": %.2f,\n  \"grain\": %s,\n  \"trackOpacity\": %.3f,\n"
-            "  \"castIndicator\": %s,\n  \"shoutIndicator\": %s,\n  \"shoutGlowWidth\": %.2f,\n"
+            "  \"castIndicator\": %s,\n  \"shoutIndicator\": %s,\n  \"shoutGlowWidth\": %.2f,\n  \"horseStamina\": %s,\n"
             "  \"hideHotkeyDX\": %d,\n  \"followCompassHide\": %s\n"
             "}\n",
             B(c.enabled), c.x, c.y, c.scale, c.rotation,
             c.lineWidth, c.alpha,
             B(c.showNumbers), c.textSize, B(c.grain), c.trackOpacity,
-            B(c.castIndicator), B(c.shoutIndicator), c.shoutGlow,
+            B(c.castIndicator), B(c.shoutIndicator), c.shoutGlow, B(c.horseStamina),
             c.hideHotkeyDX, B(c.followCompassHide));
         return buf;
     }
@@ -85,6 +85,7 @@ namespace Settings {
         ReadB(txt, "shoutIndicator", c.shoutIndicator);
         // 0.1.x saved "shoutWidth" (a 3 px line); the glow has its own key so that value is ignored.
         ReadF(txt, "shoutGlowWidth", c.shoutGlow);
+        ReadB(txt, "horseStamina", c.horseStamina);
         ReadI(txt, "hideHotkeyDX", c.hideHotkeyDX);
         ReadB(txt, "followCompassHide", c.followCompassHide);
         c.scale     = std::clamp(c.scale, 0.25f, 4.0f);

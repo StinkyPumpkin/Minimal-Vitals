@@ -58,6 +58,7 @@ namespace {
     constexpr Rgb  kLilac  { 255, 196, 240 };
     constexpr Rgb  kWhite  { 248, 248, 248 };
     constexpr Rgb  kTrack  {  10,  11,  13 };   // optional bar backing
+    constexpr Rgb  kHorse  {  30, 110,  45 };   // horse stamina line (dark green)
 
     // Edge UI gold (its SkyPrompt icon set: #f6d884 highlight, #7e6024 deep) -> black, by
     // distance in from the frame line. The last stop is a soft edge onto the empty track.
@@ -409,6 +410,10 @@ namespace {
             v.shoutCooling = t < 3.0f;
             v.shoutProgress = t / 3.0f;
             if (!v.valid) { v.hp = 412; v.hpMax = 530; v.mp = 148; v.mpMax = 260; v.sp = 201; v.spMax = 310; }
+            // and a horse whose stamina drains from full to 40 % over the loop
+            v.mounted = true;
+            v.horseSpMax = 250.0f;
+            v.horseSp = v.horseSpMax * (1.0f - 0.6f * t / 5.0f);
         } else if (!v.valid) {
             return;
         }
@@ -518,6 +523,22 @@ namespace {
 
         // 5. Cast glow over the health section.
         if (casting) drawCast(Pass::Above);
+
+        // 6. Horse stamina while riding: a thin dark green line just outside the right side, from the top point
+        // down (the shout uses the left side). Snapped to whole pixels with no anti-aliasing, so it stays hard-edged.
+        if (cfg.horseStamina && v.mounted) {
+            const float f = ratio(v.horseSp, v.horseSpMax);
+            if (f > 0.0f) {
+                const float off = 0.5f * cfg.lineWidth + 2.0f;   // gap outside the frame line, reference units
+                const ImVec2 a = X(XR + off, TOP), b = X(XR + off, TOP + (BotY(XR) - TOP) * f);
+                const float t = std::max(1.0f, std::round(s));
+                ImVec2 lo{ std::round(std::min(a.x, b.x)), std::round(std::min(a.y, b.y)) };
+                ImVec2 hi{ std::round(std::max(a.x, b.x)), std::round(std::max(a.y, b.y)) };
+                if (hi.x - lo.x < hi.y - lo.y) hi.x = lo.x + t;
+                else hi.y = lo.y + t;
+                DL::AddRectFilled(dl, lo, hi, Col(kHorse, A), 0.0f, 0);
+            }
+        }
 
         // Current values (they grow with level; the bars do not).
         if (cfg.showNumbers) {

@@ -3,7 +3,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STR
 # MinimalVitals — minimal health / magicka / stamina widget with casting and
 # shout-cooldown indicators, rendered through SKSE Menu Framework (replaces TrueHUD's
 # player bars). Skeleton shared with ArousedWidget / LilithWidget.
-project(MinimalVitals VERSION 0.4.0 LANGUAGES CXX)
+project(MinimalVitals VERSION 0.5.0 LANGUAGES CXX)
 
 if(DEFINED ENV{SKYRIM_MODS_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_MODS_FOLDER}")
     set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/Minimal Vitals--Claude")

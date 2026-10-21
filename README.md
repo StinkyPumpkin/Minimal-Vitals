@@ -13,6 +13,7 @@ Thin-line frame, fixed size at every level, current values beside it.
 - Bars never grow with level; only the numbers change
 - Glow round the lower box while a spell charges; pulses when fully charged or channelling
 - Glow down the frame while your shout recovers
+- Thin dark green horse stamina line down the right side while riding (can be turned off)
 - Rotate it 90, 180 or 270 degrees; the numbers stay upright
 - Hides in menus, loading screens, with a hotkey, with Photo Mode Hide UI, and whenever the compass is hidden
 - Optional dark backing behind the bars (off = clear)
