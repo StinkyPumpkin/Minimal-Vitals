@@ -524,19 +524,38 @@ namespace {
         // 5. Cast glow over the health section.
         if (casting) drawCast(Pass::Above);
 
-        // 6. Horse stamina while riding: a thin dark green line just outside the right side, from the top point
-        // down (the shout uses the left side). Snapped to whole pixels with no anti-aliasing, so it stays hard-edged.
+        // 6. Horse stamina while riding: a dark green line just outside the right side, from the top point down (the
+        // shout uses the left side). Snapped to whole pixels: the inner edge hard, the outer edge softened over one
+        // more pixel. 0.5.1: twice as thick with the soft outer edge (user, 10-29: one hard pixel looked empty and
+        // a sprint's drain was too small to see).
         if (cfg.horseStamina && v.mounted) {
             const float f = ratio(v.horseSp, v.horseSpMax);
             if (f > 0.0f) {
                 const float off = 0.5f * cfg.lineWidth + 2.0f;   // gap outside the frame line, reference units
                 const ImVec2 a = X(XR + off, TOP), b = X(XR + off, TOP + (BotY(XR) - TOP) * f);
-                const float t = std::max(1.0f, std::round(s));
+                const ImVec2 o = X(XR + off + 1.0f, TOP);        // one unit further out: which way "outside" is on screen
+                const ImVec2 out{ o.x - a.x, o.y - a.y };
+                const float t  = std::max(2.0f, std::round(2.0f * s));
+                const float aa = std::max(1.0f, std::round(s));
                 ImVec2 lo{ std::round(std::min(a.x, b.x)), std::round(std::min(a.y, b.y)) };
                 ImVec2 hi{ std::round(std::max(a.x, b.x)), std::round(std::max(a.y, b.y)) };
-                if (hi.x - lo.x < hi.y - lo.y) hi.x = lo.x + t;
-                else hi.y = lo.y + t;
-                DL::AddRectFilled(dl, lo, hi, Col(kHorse, A), 0.0f, 0);
+                const ImU32 full = Col(kHorse, A), clear = Col(kHorse, 0.0f);
+                if (hi.x - lo.x < hi.y - lo.y) {  // upright line: outside is left or right
+                    hi.x = lo.x + t;
+                    if (out.x >= 0.0f) {
+                        DL::AddRectFilledMultiColor(dl, { hi.x, lo.y }, { hi.x + aa, hi.y }, full, clear, clear, full);
+                    } else {
+                        DL::AddRectFilledMultiColor(dl, { lo.x - aa, lo.y }, { lo.x, hi.y }, clear, full, full, clear);
+                    }
+                } else {  // lying line: outside is up or down
+                    hi.y = lo.y + t;
+                    if (out.y >= 0.0f) {
+                        DL::AddRectFilledMultiColor(dl, { lo.x, hi.y }, { hi.x, hi.y + aa }, full, full, clear, clear);
+                    } else {
+                        DL::AddRectFilledMultiColor(dl, { lo.x, lo.y - aa }, { hi.x, lo.y }, clear, clear, full, full);
+                    }
+                }
+                DL::AddRectFilled(dl, lo, hi, full, 0.0f, 0);
             }
         }
 
