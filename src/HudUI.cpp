@@ -168,13 +168,30 @@ namespace {
         DL::AddPolyline(dl, rim, 4, Col(st.rim, 0.55f * a), ImGuiMCP::ImDrawFlags_Closed, std::max(0.9f * s, 1.0f));
     }
 
-    // Health: anchored on the divider, grows up toward the top edge. Its two ends follow the
-    // top edge and the divider, which slope opposite ways, so each side fills on its own.
+    // An up-filling cell between L and R: its top end stays parallel to the top edge and slides
+    // down toward the bottom (divider-parallel) end as v drops; v is measured on the right side,
+    // the longest. Near empty the two ends cross, leaving a triangle (tl == bl). Points come out
+    // tl, tr, br, bl in reference units. 0.5.2 (user, 11-06): the moving end must keep the
+    // frame's angle - before, each side filled on its own and the end tilted in between.
+    void UpFill(float L, float R, float tL, float tR, float bL, float bR, float v, ImVec2* q) {
+        const float drop = (bR - tR) * (1.0f - std::clamp(v, 0.0f, 1.0f));
+        const float cL = tL + drop, cR = tR + drop;
+        if (cL <= bL) {
+            q[0] = { L, cL }; q[3] = { L, bL };
+        } else {
+            // where the slid top line (slope -K) meets the bottom line (slope +K)
+            const float x = L + (cL - bL) / (2.0f * K);
+            q[0] = q[3] = { x, bL + (x - L) * K };
+        }
+        q[1] = { R, cR }; q[2] = { R, bR };
+    }
+
+    // Health: anchored on the divider, grows up toward the top edge.
     void BarUp(ImGuiMCP::ImDrawList* dl, const Xf& X, float L, float R, float v, const Stat& st, float a, bool grain) {
         if (v <= 0.0f) return;
-        v = std::min(v, 1.0f);
-        const float tL = TopY(L) + GAP, tR = TopY(R) + GAP, bL = DivY(L) - GAP, bR = DivY(R) - GAP;
-        FillBar(dl, X(L, bL - (bL - tL) * v), X(R, bR - (bR - tR) * v), X(R, bR), X(L, bL), st, a, X.s, grain);
+        ImVec2 q[4];
+        UpFill(L, R, TopY(L) + GAP, TopY(R) + GAP, DivY(L) - GAP, DivY(R) - GAP, v, q);
+        FillBar(dl, X(q[0]), X(q[1]), X(q[2]), X(q[3]), st, a, X.s, grain);
     }
 
     // Magicka / stamina: anchored on the divider, grow down toward the bottom edge.
@@ -214,9 +231,9 @@ namespace {
     // The split runs just under the divider line, so the part above it covers the line too.
     float SplitSide(ImVec2 p) { return p.y - (DivY(p.x) + 1.0f); }
 
-    // Part of a convex polygon on one side of the split (Sutherland-Hodgman, one plane).
-    int ClipSplit(const MV* in, int n, bool above, MV* out) {
-        auto keep = [above](const MV& v) { const float s = SplitSide(v.p); return above ? -s : s; };
+    // Part of a convex polygon where keep(v) >= 0 (Sutherland-Hodgman, one plane, keep linear).
+    template <class F>
+    int ClipBy(const MV* in, int n, F keep, MV* out) {
         int k = 0;
         for (int i = 0; i < n; ++i) {
             const MV& a = in[i];
@@ -229,6 +246,11 @@ namespace {
             }
         }
         return k;
+    }
+
+    // Part of a convex polygon on one side of the split.
+    int ClipSplit(const MV* in, int n, bool above, MV* out) {
+        return ClipBy(in, n, [above](const MV& v) { const float s = SplitSide(v.p); return above ? -s : s; }, out);
     }
 
     void Quad(ImGuiMCP::ImDrawList* dl, const Xf& X, const MV* q, Pass pass, float A) {
@@ -403,10 +425,17 @@ namespace {
         if (cfg.preview) {
             // Loop a fake cast (2 s charge, 1.5 s held) and shout cooldown (3 s) so the
             // indicators can be positioned without casting.
+            // The cast cycles right hand, left hand, both hands, one per loop.
             const float t = std::fmod(Seconds(), 5.0f);
-            v.casting = t < 3.5f;
-            v.castHeld = t >= 2.0f && t < 3.5f;
-            v.castProgress = v.castHeld ? 1.0f : t / 2.0f;
+            const int which = static_cast<int>(std::fmod(Seconds() / 5.0f, 3.0f));
+            Vitals::Snapshot::Cast c;
+            c.on = t < 3.5f;
+            c.held = t >= 2.0f && t < 3.5f;
+            c.progress = c.held ? 1.0f : t / 2.0f;
+            v.castR = which != 1 ? c : Vitals::Snapshot::Cast{};
+            v.castL = which != 0 ? c : Vitals::Snapshot::Cast{};
+            v.castDual = false;
+            v.casting = c.on;
             v.shoutCooling = t < 3.0f;
             v.shoutProgress = t / 3.0f;
             if (!v.valid) { v.hp = 412; v.hpMax = 530; v.mp = 148; v.mpMax = 260; v.sp = 201; v.spMax = 310; }
@@ -474,25 +503,60 @@ namespace {
             Band(dl, X, part, n, false, frameC, rows, 5, false, kWhite, A, Pass::All);
         }
 
-        // Casting: clockwise round the lower box from its top-left corner. Fully charged and
-        // held -> the whole outline glows and pulses. Drawn in two passes split at the
-        // divider: behind the frame lines below it, over the health section above it.
-        const bool casting = cfg.castIndicator && v.casting && (v.castHeld || v.castProgress > 0.0f);
+        // Casting round the lower box, starting at its top corner (left end of the divider):
+        // right hand clockwise (along the divider first), left hand anticlockwise (down the left
+        // side first); both hands / a dual cast split there, each half going its own way, and meet
+        // at the bottom corner. Fully charged and held -> that glow pulses (both held or one hand
+        // held -> the whole outline). Drawn in two passes split at the divider: behind the frame
+        // lines below it, over the health section above it. 0.5.2 (user, 11-06): a glow starts
+        // with the corner's point (a hair of lead-in on the edge before the corner makes Band mitre
+        // it) and the two halves meeting at the bottom form that corner's point too.
+        const Vitals::Snapshot::Cast cr = v.castR, cl = v.castL;
+        const bool both = (cr.on && cl.on) || v.castDual;
+        const bool casting = cfg.castIndicator && v.casting &&
+                             ((cr.on && (cr.held || cr.progress > 0.0f)) || (cl.on && (cl.held || cl.progress > 0.0f)));
+        const bool ring = both ? (cr.held && cl.held) : (cr.on ? cr.held : cl.held);
         const float pulse = 0.5f + 0.5f * std::sin(Seconds() * 6.2831853f / 0.9f);
         auto drawCast = [&](Pass pass) {
-            const ImVec2 loop[5] = { lower[0], lower[1], lower[2], lower[3], lower[0] };
-            if (v.castHeld) {
-                const Row glow[5] = { { t0 - 0.6f, 0.0f }, { t0 + 0.4f, 1.0f }, { CAST_GLOW - 0.5f, 1.0f },
+            const Row glowHeld[5] = { { t0 - 0.6f, 0.0f }, { t0 + 0.4f, 1.0f }, { CAST_GLOW - 0.5f, 1.0f },
                                       { CAST_GLOW + 0.5f, 0.45f + 0.35f * pulse }, { CAST_GLOW + 8.0f + 3.0f * pulse, 0.0f } };
-                const Row hot[4] = { { t0 - 0.6f, 0.0f }, { t0 + 0.4f, 0.45f * pulse }, { 1.2f, 0.45f * pulse }, { 2.0f, 0.0f } };
-                Band(dl, X, loop, 4, true, lowerC, glow, 5, true, kPink, A, pass);
+            const Row hot[4] = { { t0 - 0.6f, 0.0f }, { t0 + 0.4f, 0.45f * pulse }, { 1.2f, 0.45f * pulse }, { 2.0f, 0.0f } };
+            const Row glow[5] = { { t0 - 0.6f, 0.0f }, { t0 + 0.4f, 1.0f }, { CAST_GLOW - 0.5f, 1.0f },
+                                  { CAST_GLOW + 0.5f, 0.55f }, { CAST_GLOW + 7.0f, 0.0f } };
+            if (ring) {
+                const ImVec2 loop[4] = { lower[0], lower[1], lower[2], lower[3] };
+                Band(dl, X, loop, 4, true, lowerC, glowHeld, 5, true, kPink, A, pass);
                 Band(dl, X, loop, 4, true, lowerC, hot, 4, false, kLilac, A, pass);
-            } else {
-                const Row glow[5] = { { t0 - 0.6f, 0.0f }, { t0 + 0.4f, 1.0f }, { CAST_GLOW - 0.5f, 1.0f },
-                                      { CAST_GLOW + 0.5f, 0.55f }, { CAST_GLOW + 7.0f, 0.0f } };
+                return;
+            }
+            const ImVec2 cw[5]  = { lower[0], lower[1], lower[2], lower[3], lower[0] };
+            const ImVec2 ccw[5] = { lower[0], lower[3], lower[2], lower[1], lower[0] };
+            // f = share of the whole loop to cover from the top corner.
+            auto run = [&](const ImVec2* loop, float f, bool held) {
+                if (f <= 0.0f) return;
                 ImVec2 part[8];
-                const int n = PartialPath(loop, 5, v.castProgress, part);
-                Band(dl, X, part, n, false, lowerC, glow, 5, true, kPink, A, pass);
+                const int n = PartialPath(loop, 5, f, part);
+                ImVec2 path[9];
+                const ImVec2 prev = loop[3];   // the edge coming into the top corner
+                const float l = std::hypot(prev.x - loop[0].x, prev.y - loop[0].y);
+                path[0] = Lerp(loop[0], prev, 0.05f / l);
+                for (int i = 0; i < n; ++i) path[i + 1] = part[i];
+                Band(dl, X, path, n + 1, false, lowerC, held ? glowHeld : glow, 5, true, kPink, A, pass);
+                if (held) Band(dl, X, path, n + 1, false, lowerC, hot, 4, false, kLilac, A, pass);
+            };
+            // Half of the loop ends exactly on the bottom corner; a hair past it lets the corner mitre.
+            constexpr float kHalf = 0.5f, kPast = 0.0005f;
+            if (both) {
+                const auto half = [&](const Vitals::Snapshot::Cast& c) {
+                    const float f = c.held ? 1.0f : c.progress;
+                    return f >= 1.0f ? kHalf + kPast : kHalf * f;
+                };
+                if (cr.on) run(cw, half(cr), cr.held);
+                if (cl.on) run(ccw, half(cl), cl.held);
+            } else if (cr.on) {
+                run(cw, cr.progress, false);
+            } else {
+                run(ccw, cl.progress, false);
             }
         };
         if (casting) drawCast(Pass::Below);
@@ -524,38 +588,34 @@ namespace {
         // 5. Cast glow over the health section.
         if (casting) drawCast(Pass::Above);
 
-        // 6. Horse stamina while riding: a dark green line just outside the right side, from the top point down (the
-        // shout uses the left side). Snapped to whole pixels: the inner edge hard, the outer edge softened over one
-        // more pixel. 0.5.1: twice as thick with the soft outer edge (user, 10-29: one hard pixel looked empty and
-        // a sprint's drain was too small to see).
+        // 6. Horse stamina while riding: a dark green strip against the outside of the frame's right
+        // side, beside the health box only (the shout uses the left side). Its ends continue the top
+        // edge and the divider and it drains like health, the top end sliding down toward the
+        // divider. 4 units solid, then a 3-unit soft fade outward. 0.5.2 (user, 11-06): was a 2 px
+        // line 2 px off the frame down the whole right side.
         if (cfg.horseStamina && v.mounted) {
             const float f = ratio(v.horseSp, v.horseSpMax);
             if (f > 0.0f) {
-                const float off = 0.5f * cfg.lineWidth + 2.0f;   // gap outside the frame line, reference units
-                const ImVec2 a = X(XR + off, TOP), b = X(XR + off, TOP + (BotY(XR) - TOP) * f);
-                const ImVec2 o = X(XR + off + 1.0f, TOP);        // one unit further out: which way "outside" is on screen
-                const ImVec2 out{ o.x - a.x, o.y - a.y };
-                const float t  = std::max(2.0f, std::round(2.0f * s));
-                const float aa = std::max(1.0f, std::round(s));
-                ImVec2 lo{ std::round(std::min(a.x, b.x)), std::round(std::min(a.y, b.y)) };
-                ImVec2 hi{ std::round(std::max(a.x, b.x)), std::round(std::max(a.y, b.y)) };
-                const ImU32 full = Col(kHorse, A), clear = Col(kHorse, 0.0f);
-                if (hi.x - lo.x < hi.y - lo.y) {  // upright line: outside is left or right
-                    hi.x = lo.x + t;
-                    if (out.x >= 0.0f) {
-                        DL::AddRectFilledMultiColor(dl, { hi.x, lo.y }, { hi.x + aa, hi.y }, full, clear, clear, full);
-                    } else {
-                        DL::AddRectFilledMultiColor(dl, { lo.x - aa, lo.y }, { lo.x, hi.y }, clear, full, full, clear);
+                constexpr float kSolid = 4.0f, kFade = 3.0f;
+                const float a0 = XR + 0.5f * cfg.lineWidth, b0 = a0 + kSolid + kFade;
+                ImVec2 q[4];
+                UpFill(a0, b0, TopY(a0), TopY(b0), DivY(a0), DivY(b0), f, q);
+                const MV strip[4] = { { q[0], kHorse, 1.0f }, { q[1], kHorse, 1.0f }, { q[2], kHorse, 1.0f }, { q[3], kHorse, 1.0f } };
+                // alpha by distance out from the frame: solid, then an eased fade
+                struct FadeStop { float x, a; };
+                const FadeStop stops[5] = { { a0, 1.0f }, { a0 + kSolid, 1.0f }, { a0 + kSolid + kFade * 0.35f, 0.55f },
+                                            { a0 + kSolid + kFade * 0.7f, 0.18f }, { b0, 0.0f } };
+                for (int i = 0; i + 1 < 5; ++i) {
+                    MV tmp[8], piece[8];
+                    const float x0 = stops[i].x, x1 = stops[i + 1].x;
+                    int n = ClipBy(strip, 4, [x0](const MV& m) { return m.p.x - x0; }, tmp);
+                    n = ClipBy(tmp, n, [x1](const MV& m) { return x1 - m.p.x; }, piece);
+                    for (int k = 0; k < n; ++k) {
+                        const float t = (piece[k].p.x - x0) / (x1 - x0);
+                        piece[k].a = stops[i].a + (stops[i + 1].a - stops[i].a) * std::clamp(t, 0.0f, 1.0f);
                     }
-                } else {  // lying line: outside is up or down
-                    hi.y = lo.y + t;
-                    if (out.y >= 0.0f) {
-                        DL::AddRectFilledMultiColor(dl, { lo.x, hi.y }, { hi.x, hi.y + aa }, full, full, clear, clear);
-                    } else {
-                        DL::AddRectFilledMultiColor(dl, { lo.x, lo.y - aa }, { hi.x, lo.y }, clear, clear, full, full);
-                    }
+                    Fan(dl, X, piece, n, A);
                 }
-                DL::AddRectFilled(dl, lo, hi, full, 0.0f, 0);
             }
         }
 

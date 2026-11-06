@@ -10,25 +10,37 @@ namespace {
     Vitals::Snapshot  g_snap{};
     std::atomic<bool> g_readQueued{false};
 
-    // Cast tracking. Written by animation events (which can arrive off the main thread)
-    // and by the main-thread read, so plain atomics.
-    enum Hand : int { kNoHand = -1, kRight = 0, kLeft = 1 };
-    std::atomic<int>  g_castHand{kNoHand};
-    std::atomic<bool> g_heldLatch{false};
-    int               g_lostReads = 0;     // main thread only: reads with no spell / idle caster
+    // Cast tracking, one slot per hand (0.5.2: both hands, so a dual cast or two spells at
+    // once show). Written by animation events (which can arrive off the main thread) and by
+    // the main-thread read, so plain atomics.
+    enum Hand : int { kRight = 0, kLeft = 1 };
+    struct HandTrack {
+        std::atomic<bool> on{false};
+        std::atomic<bool> held{false};
+        int               lostReads = 0;   // main thread only: reads with no spell / idle caster
+    };
+    HandTrack         g_hands[2];
+    std::atomic<bool> g_stopCheck{false}; // CastStop seen: end any hand whose caster is idle now
 
     // Shout recovery (main thread only).
     float g_shoutTotal = 0.0f;
     float g_shoutLast  = 0.0f;
 
-    void EndCast() {
-        g_castHand.store(kNoHand, std::memory_order_relaxed);
-        g_heldLatch.store(false, std::memory_order_relaxed);
+    void EndHand(int h) {
+        g_hands[h].on.store(false, std::memory_order_relaxed);
+        g_hands[h].held.store(false, std::memory_order_relaxed);
+    }
+    void EndAll() { EndHand(kRight); EndHand(kLeft); }
+    void BeginHand(int h) {
+        if (g_hands[h].on.load(std::memory_order_relaxed)) return;
+        g_hands[h].held.store(false, std::memory_order_relaxed);
+        g_hands[h].on.store(true, std::memory_order_relaxed);
     }
 
-    // Event names and end conditions follow zax's Casting Bar (StateController.cpp):
-    // the hand that started casting owns the meter until it fires, the cast stops, or
-    // magic is unequipped / weapons drawn or sheathed.
+    // Event names and end conditions follow zax's Casting Bar (StateController.cpp), per hand:
+    // a hand's glow runs from its BeginCast until it fires or is re-equipped; unequip / weapons
+    // drawn or sheathed end both. CastStop does not say which hand stopped, so it only asks the
+    // next read to end whichever hand's caster has gone idle (the other may still be charging).
     class AnimSink final : public RE::BSTEventSink<RE::BSAnimationGraphEvent> {
     public:
         static AnimSink* Get() { static AnimSink s; return &s; }
@@ -37,24 +49,23 @@ namespace {
                                               RE::BSTEventSource<RE::BSAnimationGraphEvent>*) override {
             if (!a_event) return RE::BSEventNotifyControl::kContinue;
             const std::string_view tag{ a_event->tag.c_str() };
-            const int hand = g_castHand.load(std::memory_order_relaxed);
 
-            if (tag == "BeginCastRight" || tag == "BeginCastLeft") {
-                if (hand == kNoHand) {
-                    g_heldLatch.store(false, std::memory_order_relaxed);
-                    g_castHand.store(tag == "BeginCastRight" ? kRight : kLeft, std::memory_order_relaxed);
-                }
+            if (tag == "BeginCastRight") {
+                BeginHand(kRight);
+            } else if (tag == "BeginCastLeft") {
+                BeginHand(kLeft);
             } else if (tag == "MRh_SpellFire_Event" || tag == "MRh_Equipped_Event") {
-                if (hand == kRight) EndCast();
+                EndHand(kRight);
             } else if (tag == "MLh_SpellFire_Event" || tag == "MLh_Equipped_Event") {
-                if (hand == kLeft) EndCast();
+                EndHand(kLeft);
             } else if (tag == "MRh_PreAimedCon_to_MRh_AimedCon") {
-                if (hand == kRight) g_heldLatch.store(true, std::memory_order_relaxed);
+                if (g_hands[kRight].on.load(std::memory_order_relaxed)) g_hands[kRight].held.store(true, std::memory_order_relaxed);
             } else if (tag == "MLh_PreAimedCon_to_MLh_AimedCon") {
-                if (hand == kLeft) g_heldLatch.store(true, std::memory_order_relaxed);
-            } else if (tag == "CastStop" || tag == "Magic_Unequip_Out" ||
-                       tag == "WeaponSheathe" || tag == "weaponDraw") {
-                if (hand != kNoHand) EndCast();
+                if (g_hands[kLeft].on.load(std::memory_order_relaxed)) g_hands[kLeft].held.store(true, std::memory_order_relaxed);
+            } else if (tag == "CastStop") {
+                g_stopCheck.store(true, std::memory_order_relaxed);
+            } else if (tag == "Magic_Unequip_Out" || tag == "WeaponSheathe" || tag == "weaponDraw") {
+                EndAll();
             }
             return RE::BSEventNotifyControl::kContinue;
         }
@@ -88,31 +99,44 @@ namespace {
                p->GetActorValueModifier(RE::ACTOR_VALUE_MODIFIER::kTemporary, av);
     }
 
-    void ReadCast(RE::PlayerCharacter* p, Vitals::Snapshot& s) {
-        const int hand = g_castHand.load(std::memory_order_relaxed);
-        if (hand == kNoHand) { g_lostReads = 0; return; }
+    void ReadHand(RE::PlayerCharacter* p, int h, bool stop, Vitals::Snapshot::Cast& out, bool& dual) {
+        HandTrack& t = g_hands[h];
+        if (!t.on.load(std::memory_order_relaxed)) { t.lostReads = 0; return; }
 
-        auto* caster = p->GetMagicCaster(hand == kRight ? RE::MagicSystem::CastingSource::kRightHand
-                                                        : RE::MagicSystem::CastingSource::kLeftHand);
+        auto* caster = p->GetMagicCaster(h == kRight ? RE::MagicSystem::CastingSource::kRightHand
+                                                     : RE::MagicSystem::CastingSource::kLeftHand);
         RE::MagicItem* spell = caster ? caster->currentSpell : nullptr;
         const bool idle = !caster || !spell || caster->state.get() == RE::MagicCaster::State::kNone;
         // A missed release event must not leave the indicator up forever.
         if (idle) {
-            if (++g_lostReads > 15) EndCast();
+            if (stop || ++t.lostReads > 15) EndHand(h);
             return;
         }
-        g_lostReads = 0;
+        t.lostReads = 0;
 
         float progress = 1.0f;
         const float chargeTime = spell->GetChargeTime();
         if (chargeTime > 0.0f) {
             progress = std::clamp((chargeTime - caster->castingTimer) / chargeTime, 0.0f, 1.0f);
         }
-        if (progress >= 0.999f) g_heldLatch.store(true, std::memory_order_relaxed);
+        if (progress >= 0.999f) t.held.store(true, std::memory_order_relaxed);
 
-        s.casting      = true;
-        s.castHeld     = g_heldLatch.load(std::memory_order_relaxed);
-        s.castProgress = s.castHeld ? 1.0f : progress;
+        out.on       = true;
+        out.held     = t.held.load(std::memory_order_relaxed);
+        out.progress = out.held ? 1.0f : progress;
+        if (caster->GetIsDualCasting()) dual = true;
+    }
+
+    void ReadCast(RE::PlayerCharacter* p, Vitals::Snapshot& s) {
+        const bool stop = g_stopCheck.exchange(false, std::memory_order_relaxed);
+        ReadHand(p, kRight, stop, s.castR, s.castDual);
+        ReadHand(p, kLeft, stop, s.castL, s.castDual);
+        // A dual cast may run on one hand's caster only: both halves follow it.
+        if (s.castDual) {
+            if (!s.castR.on) s.castR = s.castL;
+            if (!s.castL.on) s.castL = s.castR;
+        }
+        s.casting = s.castR.on || s.castL.on;
     }
 
     void ReadShout(RE::PlayerCharacter* p, Vitals::Snapshot& s) {
@@ -169,7 +193,8 @@ namespace Vitals {
     }
 
     void OnGameLoaded() {
-        EndCast();
+        EndAll();
+        g_stopCheck.store(false, std::memory_order_relaxed);
         g_shoutTotal = 0.0f;
         g_shoutLast  = 0.0f;
         AttachAnimSink();

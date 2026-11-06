@@ -11,12 +11,14 @@ namespace Vitals {
         float mp = 0, mpMax = 0;
         float sp = 0, spMax = 0;
 
-        // Spell charge, same source as zax's Casting Bar: the hand that started casting,
+        // Spell charge per hand, same source as zax's Casting Bar:
         // progress = (chargeTime - castingTimer) / chargeTime. "held" = fully charged and
         // not released yet (fire-and-forget held, or a concentration spell being channelled).
-        bool  casting = false;
-        float castProgress = 0;
-        bool  castHeld = false;
+        // 0.5.2: both hands tracked (right glows clockwise, left anticlockwise, both = split).
+        struct Cast { bool on = false; float progress = 0; bool held = false; };
+        Cast  castR, castL;
+        bool  castDual = false;   // a real dual cast (perk): both halves follow the one charge
+        bool  casting = false;    // either hand
 
         // Shout recovery: 0 when the cooldown starts, 1 when it is done (then hidden).
         bool  shoutCooling = false;
