@@ -6,6 +6,7 @@
 #include <RE/G/GFxValue.h>
 #include <RE/P/PlayerCamera.h>
 #include <RE/P/PlayerCharacter.h>
+#include <RE/I/IMenu.h>
 #include <RE/U/UI.h>
 
 #include <atomic>
@@ -191,7 +192,9 @@ namespace Visibility {
 
         // Verified against CommonLibSSE-NG MENU_NAME constants. Note: spaces
         // and capitalisation are wildly inconsistent in Bethesda's naming.
-        static constexpr const char* kBlockMenus[] = {
+        // 0.5.3: the names are made into BSFixedStrings once; IsMenuOpen(string_view) built a
+        // new one (a locked global string-pool lookup) for each name on every frame.
+        static const RE::BSFixedString kBlockMenus[] = {
             // v0.3.3: Fader/Mist/LoadWaitSpinner cover the load-adjacent transitions the
             // Loading Menu check alone misses (field report: widget visible during loads).
             "Fader Menu",       "Mist Menu",
@@ -207,8 +210,9 @@ namespace Visibility {
             "Tutorial Menu",    "RaceSex Menu",
             "Sleep/Wait Menu",
         };
-        for (const char* name : kBlockMenus) {
-            if (ui->IsMenuOpen(name)) return false;
+        for (const auto& name : kBlockMenus) {
+            const auto it = ui->menuMap.find(name);
+            if (it != ui->menuMap.end() && it->second.menu && it->second.menu->OnStack()) return false;
         }
 
         auto* pc = RE::PlayerCamera::GetSingleton();

@@ -24,8 +24,8 @@ namespace {
     std::atomic<bool> g_saveRunning{false};
     std::thread       g_saveThread;
 
-    // Marker file dropped at the start of SKSEPluginLoad so the entry point can be
-    // proven to have run even if spdlog blows up later.
+    // Marker file, written only when the normal log cannot be opened (0.5.3: it used to be
+    // appended on every launch and grew without end in Data/SKSE/Plugins).
     void WriteStartupMarker(const char* phase, const std::string& detail = {}) {
         try {
             namespace fs = std::filesystem;
@@ -41,9 +41,11 @@ namespace {
         } catch (...) {}
     }
 
-    // Documents\My Games\Skyrim Special Edition\SKSE — same place every other
-    // plugin logs. (SKSE::log::log_directory() resolves oddly on some setups.)
+    // Documents\My Games\<Skyrim SE / SE GOG / VR>\SKSE, the folder SKSE itself logs to
+    // (0.5.3: CommonLib's log_directory() picks the GOG and VR folder names; the old
+    // hard-coded "Skyrim Special Edition" stays as the fallback).
     std::filesystem::path ResolveLogDirectory() {
+        if (auto dir = SKSE::log::log_directory()) return *dir;
         wchar_t* docs = nullptr;
         std::filesystem::path p;
         if (SUCCEEDED(::SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, nullptr, &docs))) {
@@ -60,7 +62,6 @@ namespace {
     }
 
     void InitializeLogging() {
-        WriteStartupMarker("InitializeLogging-enter");
         std::filesystem::path logPath = ResolveLogDirectory();
         std::error_code ec;
         std::filesystem::create_directories(logPath, ec);
@@ -73,7 +74,6 @@ namespace {
             spdlog::set_default_logger(std::move(log));
             spdlog::set_pattern("[%H:%M:%S.%e] [%l] %v");
             SKSE::log::info("MinimalVitals v{} - logging initialized at {}", MINIMALVITALS_VERSION, logPath.string());
-            WriteStartupMarker("spdlog-init-ok", logPath.string());
         } catch (const std::exception& e) {
             WriteStartupMarker("spdlog-init-FAILED", std::string{e.what()} + " | path=" + logPath.string());
         } catch (...) {
@@ -148,7 +148,10 @@ namespace {
             HudUI::Register();
             HotkeyHandler::Register();
             g_saveRunning.store(true);
+            // Detached: a joinable std::thread left in a global calls std::terminate when the
+            // DLL's statics are torn down at game exit.
             g_saveThread = std::thread(SaveLoop);
+            g_saveThread.detach();
             break;
 
         // A cast in progress does not survive a load; the player's animation graph is new.
@@ -161,7 +164,6 @@ namespace {
 }
 
 SKSEPluginLoad(const SKSE::LoadInterface* skse) {
-    WriteStartupMarker("SKSEPluginLoad-enter");
     InitializeLogging();
     SKSE::log::info("MinimalVitals loading... built on CommonLibSSE-NG {}", MINIMALVITALS_COMMONLIB_VERSION);
     // NG 9's Init opens its own <plugin>.log by default and would replace this logger.
@@ -174,6 +176,5 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse) {
         return false;
     }
     SKSE::log::info("MinimalVitals loaded");
-    WriteStartupMarker("SKSEPluginLoad-return-true");
     return true;
 }
