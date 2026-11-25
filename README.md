@@ -60,4 +60,6 @@ Release layout: `SKSE/Plugins/MinimalVitals.dll`, `SKSE/Plugins/Fonts/MinimalVit
 
 ## License
 
-GPL-3.0 (`LICENSE`). Free and open: modify, fork and reupload as you like.
+Copyright (C) 2026 StinkyPumpkin
+
+GPL-3.0-or-later (`LICENSE`): free software under the GNU General Public License, version 3 or (at your option) any later version, WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Free and open: modify, fork and reupload as you like. Built with [CommonLibSSE-NG](https://github.com/alandtse/CommonLibSSE-NG) by alandtse (v9.1.0, GPL-3.0-or-later with the Modding Exception).

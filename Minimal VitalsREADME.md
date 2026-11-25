@@ -44,4 +44,10 @@ Keep **Hide vanilla bars** on. If the vanilla bars still show, turn on **Force h
 
 ## License
 
-Code: GPL-3.0 (`LICENSE`). Font: Outfit, Copyright 2021 The Outfit Project Authors, SIL OFL 1.1.
+Copyright (C) 2026 StinkyPumpkin. Source code: https://github.com/StinkyPumpkin/Minimal-Vitals
+
+Code: GPL-3.0-or-later (`Minimal Vitals LICENSE.txt`), free software under the GNU General Public License, version 3 or (at your option) any later version, WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+Built with [CommonLibSSE-NG](https://github.com/alandtse/CommonLibSSE-NG) by alandtse (v9.1.0, GPL-3.0-or-later with the Modding Exception).
+
+Font: Outfit, Copyright 2021 The Outfit Project Authors, SIL OFL 1.1.
